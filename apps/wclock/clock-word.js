@@ -36,7 +36,7 @@ const mins = {
   7: ["TO", 43, 53]
 };
 
-var big = g.getWidth()>200
+var big = g.getWidth()>200;
 // offsets and incerments
 const xs = big ? 35 : 20;
 const ys = big ? 31 : 28;
@@ -49,13 +49,27 @@ const lowBPP = g.getBPP && (g.getBPP()<12);
 const passivColor = lowBPP ? "#788" : "#333" /*grey*/ ;
 const activeColor = lowBPP ? "#F00" : "#F00" /*red*/ ;
 
+function getWeekNumber() {
+  currentdate = new Date();
+  var oneJan = new Date(currentdate.getFullYear(),0,1);
+  var numberOfDays = Math.floor((currentdate - oneJan) / (24 * 60 * 60 * 1000));
+  var result = Math.ceil(( currentdate.getDay() + 1 + numberOfDays) / 7);
+  return result;
+}
+
 function drawWordClock() {
 
   // get time
   var t = new Date();
   var h = t.getHours();
   var m = t.getMinutes();
-  var time = ("0" + h).substr(-2) + ":" + ("0" + m).substr(-2);
+  var kw = getWeekNumber();
+  //var kw = 12;
+  var day = t.getDay();
+  var month = t.getMonth() +1;
+  var tag = t.getDate();
+
+  var time = ("0" + h).substr(-2) + ":" + ("0" + m).substr(-2) + " " + tag + "." + month + " KW" + kw;
 
   var hidx;
   var midx;

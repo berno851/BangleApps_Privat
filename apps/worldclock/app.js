@@ -1,171 +1,146 @@
-const big = g.getWidth()>200;
-// Font for primary time and date
-const primaryTimeFontSize = big?6:5;
-const primaryDateFontSize = big?3:2;
+/* jshint esversion: 6 */
+const allWords = [
+  "ATWENTYD",
+  "QUARTERY",
+  "FIVEHALF",
+  "DPASTORO",
+  "FIVEIGHT",
+  "SIXTHREE",
+  "TWELEVEN",
+  "FOURNINE"
+];
+const hours = {
+  0: ["", 0, 0],
+  1: ["ONE", 17, 47, 77],
+  2: ["TWO", 06, 16, 17],
+  3: ["THREE", 35, 45, 55, 65, 75],
+  4: ["FOUR", 07, 17, 27, 37],
+  5: ["FIVE", 04, 14, 24, 34],
+  6: ["SIX", 05, 15, 25],
+  7: ["SEVEN", 05, 46, 56, 66, 67],
+  8: ["EIGHT", 34, 44, 54, 64, 74],
+  9: ["NINE", 47, 57, 67, 77],
+  10: ["TEN", 74, 75, 76],
+  11: ["ELEVEN", 26, 36, 46, 56, 66, 76],
+  12: ["TWELVE", 06, 16, 26, 36, 56, 66]
+};
 
-// Font for single secondary time
-const secondaryTimeFontSize = 4;
-const secondaryTimeZoneFontSize = 2;
+const mins = {
+  0: ["A", 0, 0],
+  1: ["FIVE", 02, 12, 22, 32],
+  2: ["TEN", 10, 30, 40],
+  3: ["QUARTER", 01, 11, 21, 31, 41, 51, 61],
+  4: ["TWENTY", 10, 20, 30, 40, 50, 60],
+  5: ["HALF", 42, 52, 62, 72],
+  6: ["PAST", 13, 23, 33, 43],
+  7: ["TO", 43, 53]
+};
 
-// Font / columns for multiple secondary times
-const secondaryRowColFontSize = 2;
-const xcol1 = 10;
-const xcol2 = g.getWidth() - xcol1;
+var big = g.getWidth()>200;
+// offsets and incerments
+const xs = big ? 35 : 20;
+const ys = big ? 31 : 28;
+const dx = big ? 25 : 20;
+const dy = big ? 22 : 16;
 
-const font = "6x8";
+// font size and color
+const fontSize = big ? 3 : 2;  // "6x8"
+const lowBPP = g.getBPP && (g.getBPP()<12);
+const passivColor = lowBPP ? "#788" : "#333" /*grey*/ ;
+const activeColor = lowBPP ? "#F00" : "#F00" /*red*/ ;
 
-/* TODO: we could totally use 'Layout' here and
-avoid a whole bunch of hard-coded offsets */
-
-
-const xyCenter = g.getWidth() / 2;
-const yposTime = big ? 75 : 60;
-const yposTime2 = yposTime + (big ? 100 : 60);
-const yposDate = big ? 130 : 90;
-const yposWorld = big ? 170 : 120;
-
-const OFFSET_TIME_ZONE = 0;
-const OFFSET_HOURS = 1;
-
-var offsets = require("Storage").readJSON("worldclock.settings.json") || [];
-
-// TESTING CODE
-// Used to test offset array values during development.
-// Uncomment to override secondary offsets value
-/*
-const mockOffsets = {
- zeroOffsets: [],
- oneOffset: [["UTC", 0]],
- twoOffsets: [
-   ["Tokyo", 9],
-   ["UTC", 0],
- ],
- fourOffsets: [
-   ["Tokyo", 9],
-   ["UTC", 0],
-   ["Denver", -7],
-   ["Miami", -5],
- ],
- fiveOffsets: [
-   ["Tokyo", 9],
-   ["UTC", 0],
-   ["Denver", -7],
-   ["Chicago", -6],
-   ["Miami", -5],
-   ],
-};*/
-
-// Uncomment one at a time to test various offsets array scenarios
-//offsets = mockOffsets.zeroOffsets; // should render nothing below primary time
-//offsets = mockOffsets.oneOffset; // should render larger in two rows
-//offsets = mockOffsets.twoOffsets; // should render two in columns
-//offsets = mockOffsets.fourOffsets; // should render in columns
-//offsets = mockOffsets.fiveOffsets; // should render first four in columns
-
-// END TESTING CODE
-
-// Check settings for what type our clock should be
-//var is12Hour = (require("Storage").readJSON("setting.json",1)||{})["12hour"];
-
-// timeout used to update every minute
-var drawTimeout;
-
-// schedule a draw for the next minute
-function queueDraw() {
-  if (drawTimeout) clearTimeout(drawTimeout);
-  drawTimeout = setTimeout(function() {
-    drawTimeout = undefined;
-    draw();
-  }, 60000 - (Date.now() % 60000));
+function getWeekNumber() {
+  currentdate = new Date();
+  var oneJan = new Date(currentdate.getFullYear(),0,1);
+  var numberOfDays = Math.floor((currentdate - oneJan) / (24 * 60 * 60 * 1000));
+  var result = Math.ceil(( currentdate.getDay() + 1 + numberOfDays) / 7);
+  return result;
 }
 
-function doublenum(x) {
-  return x < 10 ? "0" + x : "" + x;
-}
+function drawWordClock() {
 
-function getCurrentTimeFromOffset(dt, offset) {
-  return new Date(dt.getTime() + offset * 60 * 60 * 1000);
-}
+  // get time
+  var t = new Date();
+  var h = t.getHours();
+  var m = t.getMinutes();
+  var kw = getWeekNumber();
+  //var kw = 12;
+  var day = t.getDay();
+  var month = t.getMonth() +1;
+  var tag = t.getDate();
 
-function draw() {
-  // get date
-  var d = new Date();
-  var da = d.toString().split(" ");
+  var time = ("0" + h).substr(-2) + ":" + ("0" + m).substr(-2) + " " + tag + "." + month + " KW" + kw;
 
-  // default draw styles
-  g.reset();
+  var hidx;
+  var midx;
+  var midxA = [];
 
-  // drawSting centered
-  g.setFontAlign(0, 0);
+  g.setFont("6x8",fontSize);
+  g.setColor(passivColor);
+  g.setFontAlign(0, -1, 0);
 
-  // draw time
-  var time = da[4].substr(0, 5).split(":");
-  var hours = time[0],
-    minutes = time[1];
-
-  g.setFont(font, primaryTimeFontSize);
-  g.drawString(`${hours}:${minutes}`, xyCenter, yposTime, true);
-
-  // draw Day, name of month, Date
-  var date = [da[0], da[1], da[2]].join(" ");
-  g.setFont(font, primaryDateFontSize);
-
-  g.drawString(date, xyCenter, yposDate, true);
-
-  // set gmt to UTC+0
-  var gmt = new Date(d.getTime() + d.getTimezoneOffset() * 60 * 1000);
-
-  // Loop through offset(s) and render
-  offsets.forEach((offset, index) => {
-    dx = getCurrentTimeFromOffset(gmt, offset[OFFSET_HOURS]);
-    hours = doublenum(dx.getHours());
-    minutes = doublenum(dx.getMinutes());
-
-    if (offsets.length === 1) {
-      // For a single secondary timezone, draw it bigger and drop time zone to second line
-      const xOffset = 30;
-      g.setFont(font, secondaryTimeFontSize);
-      g.drawString(`${hours}:${minutes}`, xyCenter, yposTime2, true);
-      g.setFont(font, secondaryTimeZoneFontSize);
-      g.drawString(offset[OFFSET_TIME_ZONE], xyCenter, yposTime2 + 30, true);
-
-      // draw Day, name of month, Date
-      g.setFont(font, secondaryTimeZoneFontSize);
-      g.drawString(date, xyCenter, yposDate, true);
-    } else if (index < 4) {
-      // For > 1 extra timezones, render as columns / rows
-      g.setFont(font, secondaryRowColFontSize);
-      g.setFontAlign(-1, 0);
-      g.drawString(
-        offset[OFFSET_TIME_ZONE],
-        xcol1,
-        yposWorld + index * 15,
-        true
-      );
-      g.setFontAlign(1, 0);
-      g.drawString(`${hours}:${minutes}`, xcol2, yposWorld + index * 15, true);
+  // draw allWords
+  var c;
+  var y = ys;
+  var x = xs;
+  allWords.forEach((line) => {
+    x = xs;
+    for (c in line) {
+      g.drawString(line[c], x, y);
+      x += dx;
     }
+    y += dy;
   });
 
-  queueDraw();
+  // calc indexes
+  midx = Math.round(m / 5);
+  hidx = h % 12;
+  if (hidx === 0) { hidx = 12; }
+  if (midx > 6) {
+    if (midx == 12) { midx = 0; }
+    hidx++;
+  }
+  if (midx !== 0) {
+    if (midx <= 6) {
+      midxA = [midx, 6];
+    } else {
+      midxA = [12 - midx, 7];
+    }
+  }
+
+  // write hour in active color
+  g.setColor(activeColor);
+  hours[hidx][0].split('').forEach((c, pos) => {
+    x = xs + (hours[hidx][pos + 1] / 10 | 0) * dx;
+    y = ys + (hours[hidx][pos + 1] % 10) * dy;
+
+    g.drawString(c, x, y);
+  });
+
+  // write min words in active color
+  midxA.forEach(idx => {
+    mins[idx][0].split('').forEach((c, pos) => {
+      x = xs + (mins[idx][pos + 1] / 10 | 0) * dx;
+      y = ys + (mins[idx][pos + 1] % 10) * dy;
+      g.drawString(c, x, y);
+    });
+  });
+
+  // display digital time
+  g.setColor(activeColor);
+  g.clearRect(0, g.getHeight()-fontSize*8, g.getWidth(), g.getHeight());
+  g.drawString(time, g.getWidth()/2, g.getHeight()-fontSize*8);
 }
 
-// clean app screen
-g.clear();
-// Show launcher when button pressed
-Bangle.setUI("clock");
-Bangle.loadWidgets();
-Bangle.drawWidgets();
-
-// Stop updates when LCD is off, restart when on
-Bangle.on('lcdPower',on=>{
-  if (on) {
-    draw(); // draw immediately, queue redraw
-  } else { // stop draw timer
-    if (drawTimeout) clearTimeout(drawTimeout);
-    drawTimeout = undefined;
-  }
+Bangle.on('lcdPower', function(on) {
+  if (on) drawWordClock();
 });
 
-// draw now
-draw();
+g.clear();
+Bangle.loadWidgets();
+Bangle.drawWidgets();
+setInterval(drawWordClock, 1E4);
+drawWordClock();
+
+// Show launcher when button pressed
+Bangle.setUI("clock");
